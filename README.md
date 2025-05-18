@@ -41,7 +41,7 @@ gosocial_server/
 ## 安装运行指南
 1. 克隆项目:
 ```bash
-git clone [项目地址]
+git clone [https://github.com/Chael7H/gosocial]
 ```
 
 2. 安装依赖:
