@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户信息</title>
+    <style>
+        .profile-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .avatar-upload {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .avatar-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            cursor: pointer;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .char-count {
+            font-size: 12px;
+            color: #999;
+            text-align: right;
+            margin-top: 4px;
+        }
+        .btn-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-cancel {
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-save {
+            background: #4a90e2;
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="user-info">
+        <p>加载中...</p>
+    </div>
+
+    <script>
+        let userData = {};
+        const token = localStorage.getItem('token');
+
+        // 接收父窗口传递的Token
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'SET_TOKEN') {
+                localStorage.setItem('token', event.data.token);
+                loadUserInfo();
+            }
+        });
+
+        // 加载用户信息
+        function loadUserInfo() {
+            if (!token) {
+                renderUserInfo();
+                return;
+            }
+
+            fetch('/api/v1/user/info', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 1000) {
+                    userData = data.data;
+                    // 格式化生日日期为YYYY-MM-DD
+                    if (userData.birthday && typeof userData.birthday === 'string') {
+                        userData.birthday = userData.birthday.split('T')[0];
+                    }
+                    renderUserInfo();
+                } else {
+                    alert(data.msg || '获取信息失败');
+                }
+            })
+            .catch(error => {
+                console.error('获取用户信息失败:', error);
+                renderUserInfo();
+            });
+        }
+
+        // 渲染用户信息编辑界面
+        function renderUserInfo() {
+            const infoDiv = document.getElementById('user-info');
+
+            infoDiv.innerHTML = `
+                <div class="edit-mode">
+                    <div class="avatar-upload" style="text-align: center; margin-bottom: 20px;">
+                        <label for="avatar-input" style="cursor: pointer;">
+                            <img id="avatar-preview" src="${userData.avatar || '/static/images/default-avatar.png'}"
+                                 class="avatar-preview" alt="头像" title="点击更换头像">
+                        </label>
+                        <input type="file" id="avatar-input" accept="image/png, image/jpeg" style="display:none"
+                               onchange="uploadAvatar(event)">
+                    </div>
+                    <div class="form-group">
+                        <label>昵称</label>
+                        <input type="text" id="nickname" value="${userData.nickname || ''}"
+                               maxlength="24" oninput="updateCharCount('nickname', 24)">
+                        <div class="char-count">
+                            <span id="nickname-count">${userData.nickname ? userData.nickname.length : 0}</span>/24
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>个人简介</label>
+                        <textarea id="signature" maxlength="80"
+                                  oninput="updateCharCount('signature', 80)">${userData.signature || ''}</textarea>
+                        <div class="char-count">
+                            <span id="signature-count">${userData.signature ? userData.signature.length : 0}</span>/80
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select id="gender">
+                            <option value="">请选择性别</option>
+                            <option value="male" ${userData.gender === 'male' ? 'selected' : ''}>男</option>
+                            <option value="female" ${userData.gender === 'female' ? 'selected' : ''}>女</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>生日</label>
+                        <input type="date" id="birthday" value="${userData.birthday || ''}">
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-save" onclick="saveUserInfo()">保存</button>
+                        <button class="btn btn-primary" onclick="goToPersonalSpace()">进入个人空间</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 跳转到个人空间
+        function goToPersonalSpace() {
+            window.location.href = '/posts';
+        }
+
+        // 保存用户信息
+        function saveUserInfo() {
+            const nickname = document.getElementById('nickname').value.trim();
+            if (!nickname) {
+                alert('昵称不能为空');
+                return;
+            }
+
+            const birthdayValue = document.getElementById('birthday').value;
+            const updatedData = {
+                nickname: nickname,
+                avatar: userData.avatar || '', // 保留原有头像或使用默认
+                signature: document.getElementById('signature').value.trim(),
+                gender: document.getElementById('gender').value,
+                birthday: birthdayValue ? new Date(birthdayValue).toISOString() : null
+            };
+
+            // 如果有新头像文件，需要特殊处理上传
+            const avatarFile = document.getElementById('avatar-input').files[0];
+            if (avatarFile) {
+                const formData = new FormData();
+                formData.append('avatar', avatarFile);
+                formData.append('data', JSON.stringify(updatedData));
+
+                fetch('/api/v1/user/update_info', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    handleSaveResponse(data);
+                })
+                .catch(error => {
+                    console.error('更新用户信息失败:', error);
+                    alert('网络错误，请重试');
+                });
+            } else {
+                fetch('/api/v1/user/update_info', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    handleSaveResponse(data);
+                })
+                .catch(error => {
+                    console.error('更新用户信息失败:', error);
+                    alert('网络错误，请重试');
+                });
+            }
+        }
+
+        function handleSaveResponse(data) {
+            if (data.code === 1000) {
+                userData = {...userData, ...data.data};
+                alert('保存成功');
+                // 可以添加返回上一页或关闭窗口的逻辑
+            } else {
+                alert(data.msg || '保存失败');
+            }
+        }
+
+        // 上传头像
+        function uploadAvatar(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 验证文件类型
+            if (!file.type.match('image.*')) {
+                alert('请选择图片文件(png/jpg)');
+                return;
+            }
+
+            // 预览头像
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('avatar-preview').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            // 上传到服务器
+            const formData = new FormData();
+            formData.append('avatar', file);
+
+            fetch('/api/v1/user/upload_avatar', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 1000) {
+                    userData.avatar = data.avatar_url;
+                    alert('头像上传成功');
+                } else {
+                    alert(data.msg || '头像上传失败');
+                }
+            })
+            .catch(error => {
+                console.error('上传头像失败:', error);
+                alert('网络错误，请重试');
+            });
+        }
+
+        // 更新字符计数
+        function updateCharCount(fieldId, maxLength) {
+            const input = document.getElementById(fieldId);
+            const countSpan = document.getElementById(`${fieldId}-count`);
+            const currentLength = input.value.length;
+            countSpan.textContent = currentLength;
+
+            if (currentLength > maxLength * 0.8) {
+                countSpan.style.color = '#ff6b6b';
+            } else {
+                countSpan.style.color = '#999';
+            }
+        }
+
+        // 解析URL参数
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const dataParam = params.get('data');
+            return dataParam ? JSON.parse(decodeURIComponent(dataParam)) : null;
+        }
+
+        // 初始化加载
+        const urlData = getUrlParams();
+        if (urlData) {
+            userData = {
+                ...urlData,
+                avatar: urlData.avatar || '/static/images/default-avatar.png'
+            };
+            renderUserInfo();
+        } else {
+            loadUserInfo();
+        }
+    </script>
+</body>
+</html>

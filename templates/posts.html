@@ -1,0 +1,451 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>个人空间</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .post-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .create-post {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .create-post textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: none;
+            margin-bottom: 10px;
+        }
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-upload {
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-submit {
+            background: #4a90e2;
+            color: white;
+        }
+        .btn-submit:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .image-preview {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .preview-item {
+            position: relative;
+            aspect-ratio: 1;
+        }
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .remove-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: red;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .image-count {
+            margin-left: 10px;
+            color: #666;
+        }
+        .upload-btn {
+            display: flex;
+            align-items: center;
+        }
+
+        .post-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .post-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .post-user {
+            font-weight: 500;
+            flex-grow: 1;
+        }
+        .delete-btn {
+            padding: 4px 8px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover {
+            background: #ff7875;
+        }
+        .post-content {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        .post-images {
+            margin-bottom: 10px;
+        }
+        .image-grid {
+            display: grid;
+            gap: 5px;
+        }
+        .image-grid[style*="1fr"] {
+            grid-template-columns: 1fr;
+        }
+        .image-grid[style*="repeat(2"] {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .image-grid[style*="repeat(3"] {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .post-image {
+            width: 100%;
+            border-radius: 4px;
+            aspect-ratio: 1;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .post-image:hover {
+            transform: scale(1.02);
+        }
+        .post-footer {
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+            font-size: 14px;
+        }
+        .load-more {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .load-more-btn {
+            padding: 10px 20px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="posts-app">
+        <div class="header">
+        <div class="user-info" @click="goToUserSpace(currentUserId)">
+            <img :src="currentUserAvatar" class="user-avatar">
+            <h1>{{ currentUserName }}的个人空间</h1>
+        </div>
+        <button onclick="window.location.href='/user/info'">返回个人信息</button>
+    </div>
+
+        <!-- 创建动态表单 -->
+        <div class="create-post">
+            <div class="form-group">
+                <textarea v-model="newPost.content" placeholder="分享你的想法..." rows="3"></textarea>
+            </div>
+            <div class="image-preview" v-if="newPost.images.length > 0">
+                <div v-for="(image, index) in newPost.images" :key="index" class="preview-item">
+                    <img :src="image" @click="removeImage(index)">
+                    <span class="remove-btn" @click="removeImage(index)">×</span>
+                </div>
+            </div>
+            <div class="form-actions">
+                <div class="upload-btn">
+                    <input type="file" id="post-images" multiple accept="image/*" @change="handleImageUpload" style="display:none">
+                    <label for="post-images" class="btn btn-upload">添加图片</label>
+                    <span class="image-count" v-if="newPost.images.length > 0">
+                        {{ newPost.images.length }}/9
+                    </span>
+                </div>
+                <button class="btn btn-submit" @click="submitPost" :disabled="!canSubmit">发布</button>
+            </div>
+        </div>
+
+            <div class="post-list">
+                <div class="post-item" v-for="post in posts" :key="post.id">
+                    <div class="post-header">
+                        <img :src="post.avatar_url ? post.avatar_url : 'https://s3.bmp.ovh/imgs/2025/05/04/e272b0b155df44bd.png'"
+                             class="post-avatar"
+                             @click.stop="goToUserSpace(post.user_id)">
+                        <div class="post-user">{{ post.remark || post.username }}</div>
+                        <button v-if="post.user_id === currentUserId"
+                                class="delete-btn"
+                                @click="deletePost(post.id)">
+                            删除
+                        </button>
+                    </div>
+                    <div class="post-content" v-if="post.content">{{ post.content }}</div>
+                    <div class="post-images" v-if="post.images">
+                        <div class="image-grid" :style="getGridStyle(post.images.split(',').length)">
+                            <img v-for="(image, index) in post.images.split(',')"
+                                 :key="index" :src="image" class="post-image"
+                                 @click="viewImage(image)">
+                        </div>
+                    </div>
+                    <div class="post-footer">
+                        <span>{{ formatTime(post.created_at) }}</span>
+                        <span>浏览 {{ post.view_count }} 次</span>
+                    </div>
+                </div>
+            </div>
+
+        <div class="load-more" v-if="hasMore">
+            <button class="load-more-btn" @click="loadMore">加载更多</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        new Vue({
+            el: '#posts-app',
+            data: {
+                posts: [],
+                offset: 0,
+                hasMore: true,
+                loading: false,
+                currentUserId: localStorage.getItem('user_id') || '',
+                currentUserName: localStorage.getItem('username') || '用户',
+                currentUserAvatar: localStorage.getItem('avatar_url') || 'https://s3.bmp.ovh/imgs/2025/05/04/e272b0b155df44bd.png',
+                newPost: {
+                    content: '',
+                    images: []
+                }
+            },
+            computed: {
+                canSubmit() {
+                    return this.newPost.content.trim() !== '' || this.newPost.images.length > 0;
+                }
+            },
+            created() {
+                this.loadPosts();
+            },
+            methods: {
+                loadPosts() {
+                    if (this.loading) return;
+                    this.loading = true;
+
+                    axios.get('/api/v1/posts', {
+                        params: { offset: this.offset },
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        }
+                    })
+                    .then(response => {
+                        if (response.data.code === 1000) {
+                            const newPosts = response.data.data;
+                            if (newPosts.length === 0) {
+                                this.hasMore = false;
+                            } else {
+                                this.posts = [...this.posts, ...newPosts];
+                                this.offset += newPosts.length;
+                                // 增加浏览量
+                                this.incrementViewCount(newPosts);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('获取动态失败:', error);
+                    })
+                    .finally(() => {
+                        this.loading = false;
+                    });
+                },
+
+                incrementViewCount(posts) {
+                    posts.forEach(post => {
+                        axios.put(`/api/v1/posts/${post.id}/view`, {}, {
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            }
+                        }).catch(error => {
+                            console.error('增加浏览量失败:', error);
+                        });
+                    });
+                },
+
+                loadMore() {
+                    this.loadPosts();
+                },
+
+                formatTime(timestamp) {
+                    if (!timestamp) return '';
+                    const date = new Date(timestamp);
+                    return `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}
+                            ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                },
+
+                getGridStyle(count) {
+                    if (count === 1) return 'grid-template-columns: 1fr';
+                    if (count === 2 || count === 4) return 'grid-template-columns: repeat(2, 1fr)';
+                    return 'grid-template-columns: repeat(3, 1fr)';
+                },
+                viewImage(url) {
+                    window.open(url, '_blank');
+                },
+
+                // 跳转到用户空间
+                goToUserSpace(userId) {
+                    window.location.href = `/user/posts/${userId}`;
+                },
+
+                // 处理图片上传
+                handleImageUpload(e) {
+                    const files = e.target.files;
+                    if (files.length + this.newPost.images.length > 9) {
+                        alert('最多只能上传9张图片');
+                        return;
+                    }
+
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        if (!file.type.match('image.*')) {
+                            continue;
+                        }
+
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.newPost.images.push(e.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                    e.target.value = ''; // 重置input
+                },
+
+                // 移除图片
+                removeImage(index) {
+                    this.newPost.images.splice(index, 1);
+                },
+
+                // 提交动态
+                submitPost() {
+                    if (!this.canSubmit) return;
+
+                    const formData = new FormData();
+                    formData.append('content', this.newPost.content);
+
+                    // 添加图片文件
+                    const fileInput = document.getElementById('post-images');
+                    for (let i = 0; i < fileInput.files.length; i++) {
+                        formData.append('images', fileInput.files[i]);
+                    }
+
+                    axios.post('/api/v1/posts', formData, {
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                            'Content-Type': 'multipart/form-data'
+                        }
+                    })
+                    .then(response => {
+                        if (response.data.code === 1000) {
+                            this.newPost.content = '';
+                            this.newPost.images = [];
+                            this.posts.unshift(response.data.data);
+                            if (confirm('发布成功')) {
+                                window.location.reload();
+                            }
+                        } else {
+                            alert(response.data.msg || '发布失败');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('发布动态失败:', error);
+                        alert('发布失败，请重试');
+                    });
+                },
+
+                // 删除动态
+                deletePost(postId) {
+                    if (!confirm('确定要删除这条动态吗？')) return;
+
+                    axios.delete(`/api/v1/posts/${postId}`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        }
+                    })
+                    .then(response => {
+                        if (response.data.code === 1000) {
+                            this.posts = this.posts.filter(post => post.id !== postId);
+                            alert('动态删除成功');
+                        } else {
+                            alert(response.data.msg || '删除失败');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('删除动态失败:', error);
+                        alert('删除失败，请重试');
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

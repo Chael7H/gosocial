@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>好友列表 - 社交网络平台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/friends.css">
+    <style>
+        .input-tools {
+            display: flex;
+            gap: 8px;
+            padding: 5px;
+        }
+        .input-tools button {
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .unread-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4d4f;
+            color: white;
+            border-radius: 50%;
+            min-width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            padding: 0 4px;
+            font-weight: bold;
+        }
+    </style>
+    <style>
+        .welcome-title {
+            text-align: center;
+            margin: 10px auto;
+            font-size: 18px;
+            color: #333333;
+            width: 8%;
+            max-width: 100px;
+            min-width: 50px;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div id="friends-app">
+        <div class="welcome-title">
+            <h2>欢迎进入社交平台系统</h2>
+        </div>
+        <div class="friends-container">
+            <!-- 左侧好友列表 -->
+            <div class="friends-list">
+                <div class="friends-header">
+                    <div class="search-box">
+                        <input type="text"
+                               placeholder="搜索好友"
+                               v-model="searchQuery"
+                               @input="handleSearchInput">
+                        <div class="search-results" v-if="searchResults.length > 0">
+                            <div class="search-result-item"
+                                 v-for="result in searchResults"
+                                 :key="result.id"
+                                 @click="selectFriend(result)">
+                                <img :src="result.avatar" class="friend-avatar">
+                                <span>{{ result.nickname }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="add-friend-btn" @click="goToAddFriend">+</button>
+                    <div class="user-avatar" @click="goToUserInfo">
+                        <img :src="user.avatar" alt="用户头像">
+                    </div>
+                </div>
+                <div class="friends-content">
+                    <div class="friend-item" v-for="friend in friends" :key="friend.id" @click="selectFriend(friend)">
+                        <img :src="friend.avatar" class="friend-avatar">
+                        <div class="friend-info">
+                            <span class="friend-name">{{friend.remark || friend.nickname}}</span>
+                            <span class="last-message">{{friend.lastMessage}}</span>
+                        </div>
+                        <span class="last-time">
+                            {{friend.lastTime}}
+                            <span class="unread-count" v-if="friend.unreadCount > 0">
+                                {{friend.unreadCount}}
+                            </span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧聊天区域 -->
+            <div class="chat-container">
+                <div v-if="selectedFriend" class="chat-area">
+                    <div class="chat-header">
+                        <h3 @click="goToFriendDetail(selectedFriend.id)">{{selectedFriend.remark || selectedFriend.nickname}}</h3>
+                    </div>
+                    <div class="messages-container">
+                        <div v-for="msg in messages" :key="msg.id"
+                             :class="['message-bubble', msg.direct === 1 ? 'right' : 'left']">
+                            <img :src="msg.direct === 1 ? user.avatar : selectedFriend.avatar"
+                                 class="message-avatar"
+                                 @click="msg.direct === 1 ? goToUserInfo() : goToFriendDetail(selectedFriend.id)">
+                            <div class="message-content">
+                                <div v-if="!msg.hide_time" class="message-time">
+                                    {{formatTime(msg.created_at)}}
+                                </div>
+                                <div class="message-text">
+                                    <template v-if="msg.type === 2">
+                                        <img :src="msg.content.startsWith('/') ? msg.content : '/' + msg.content" class="message-image">
+                                    </template>
+                                    <template v-else-if="msg.type === 3">
+                                        <a :href="msg.content.startsWith('/') ? msg.content : '/' + msg.content" target="_blank">
+                                            下载文件
+                                        </a>
+                                    </template>
+                                    <template v-else>
+                                        {{msg.content}}
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message-input">
+                        <div class="input-tools">
+                            <button @click="showFilePicker('image')" title="发送图片">
+                                <img src="/static/images/Fritia.jpg" width="24">
+                            </button>
+                            <button @click="showFilePicker('file')" title="发送文件">
+                                <img src="/static/images/Acacia.jpg" width="24">
+                            </button>
+                            <button @click="loadHistoryMessages" title="清除消息显示">
+                                <img src="/static/images/yiqieer.jpg" width="24">
+                            </button>
+                        </div>
+                        <textarea v-model="newMessage" placeholder="输入消息..." @keyup.enter="sendMessage"></textarea>
+                        <button @click="sendMessage">发送</button>
+                    </div>
+                </div>
+                <div v-else class="empty-chat">
+                    <p>请从左侧选择好友开始聊天</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="/static/js/friends.js"></script>
+</body>
+</html>

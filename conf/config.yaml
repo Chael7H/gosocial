@@ -1,0 +1,32 @@
+name: "gosocial"
+mode: "dev"
+port: 8081
+version: "v0.0.1"
+start_time: "2025-01-01"
+machine_id: 1
+
+auth:
+  jwt_expire: 720
+
+log:
+  level: "debug"
+  filename: "gosocial.log"
+  max_size: 200
+  max_age: 30
+  max_backups: 7
+
+mysql:
+  host: ""
+  port:
+  user: ""
+  password: ""
+  dbname: "gosocial"
+  max_open_conns : 200
+  max_idle_conns : 50
+
+redis:
+  host: ""
+  port: ""
+  db: 0
+  password: ""
+  pool_size: 100

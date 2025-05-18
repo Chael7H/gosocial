@@ -1,0 +1,263 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>好友详情</title>
+    <style>
+        .profile-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .avatar-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+        }
+        .info-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .info-label {
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 16px;
+        }
+        .remark-edit {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .remark-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+        .btn-edit {
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .action-buttons {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+    <div id="friend-detail">
+        <div class="profile-container">
+            <div class="avatar-container">
+                <img id="friend-avatar" class="avatar" src="/static/images/default-avatar.png" alt="好友头像">
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">昵称</div>
+                <div id="friend-nickname" class="info-value">加载中...</div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">备注</div>
+                <div id="friend-remark-container">
+                    <div id="friend-remark" class="info-value">暂无备注</div>
+                    <button id="edit-remark-btn" class="btn btn-edit" onclick="startEditRemark()">修改备注</button>
+                </div>
+                <div id="friend-remark-edit" style="display:none" class="remark-edit">
+                    <input type="text" id="remark-input" class="remark-input" placeholder="输入备注名">
+                    <button class="btn btn-primary" onclick="saveRemark()">保存</button>
+                    <button class="btn btn-edit" onclick="cancelEditRemark()">取消</button>
+                </div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">UID</div>
+                <div id="friend-uid" class="info-value"></div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">性别</div>
+                <div id="friend-gender" class="info-value"></div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">生日</div>
+                <div id="friend-birthday" class="info-value"></div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">个性签名</div>
+                <div id="friend-signature" class="info-value"></div>
+            </div>
+
+            <div class="info-group">
+                <div class="info-label">最后登录时间</div>
+                <div id="friend-last-login" class="info-value"></div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="goToFriendsPage()">发送消息</button>
+                <button class="btn btn-edit" onclick="confirmAndDeleteFriend()">删除好友</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        let friendId = window.location.pathname.split('/').pop();
+        let friendData = {};
+
+        // 加载好友详情
+        function loadFriendDetail() {
+            if (!token) {
+                alert('请先登录');
+                window.close();
+                return;
+            }
+
+            fetch(`/api/v1/friends/${friendId}`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 1000) {
+                    friendData = data.data;
+                    renderFriendDetail();
+                } else {
+                    alert(data.msg || '获取好友信息失败');
+                }
+            })
+            .catch(error => {
+                console.error('获取好友信息失败:', error);
+                alert('网络错误，请重试');
+            });
+        }
+
+        // 渲染好友详情
+        function renderFriendDetail() {
+            document.getElementById('friend-avatar').src = friendData.avatar_url || '/static/images/default-avatar.png';
+            document.getElementById('friend-nickname').textContent = friendData.username || '未知';
+            document.getElementById('friend-remark').textContent = friendData.remark || '暂无备注';
+            document.getElementById('friend-uid').textContent = friendData.user_id || '';
+            document.getElementById('friend-gender').textContent = friendData.gender === 'male' ? '男' : '女';
+            document.getElementById('friend-birthday').textContent = friendData.birthday || '未设置';
+            document.getElementById('friend-signature').textContent = friendData.signature || '暂无签名';
+
+            if (friendData.last_login) {
+                const lastLogin = new Date(friendData.last_login);
+                document.getElementById('friend-last-login').textContent =
+                    `${lastLogin.getFullYear()}-${(lastLogin.getMonth()+1).toString().padStart(2, '0')}-${lastLogin.getDate().toString().padStart(2, '0')}
+                    ${lastLogin.getHours().toString().padStart(2, '0')}:${lastLogin.getMinutes().toString().padStart(2, '0')}`;
+            } else {
+                document.getElementById('friend-last-login').textContent = '未知';
+            }
+        }
+
+        // 开始编辑备注
+        function startEditRemark() {
+            document.getElementById('friend-remark-container').style.display = 'none';
+            document.getElementById('friend-remark-edit').style.display = 'flex';
+            document.getElementById('remark-input').value = friendData.remark || '';
+        }
+
+        // 取消编辑备注
+        function cancelEditRemark() {
+            document.getElementById('friend-remark-container').style.display = 'block';
+            document.getElementById('friend-remark-edit').style.display = 'none';
+        }
+
+        // 保存备注
+        function saveRemark() {
+            const newRemark = document.getElementById('remark-input').value.trim();
+
+            fetch('/api/v1/friends/', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uid: friendId,
+                    remark: newRemark
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 1000) {
+                    friendData.remark = newRemark;
+                    document.getElementById('friend-remark').textContent = newRemark || '暂无备注';
+                    cancelEditRemark();
+                    alert('备注修改成功');
+                } else {
+                    alert(data.msg || '修改备注失败');
+                }
+            })
+            .catch(error => {
+                console.error('修改备注失败:', error);
+                alert('网络错误，请重试');
+            });
+        }
+
+        // 返回好友界面
+        function goToFriendsPage() {
+            window.location.href = '/friends';
+        }
+
+        // 确认并删除好友
+        function confirmAndDeleteFriend() {
+            if (!confirm('确定要删除该好友吗？此操作不可撤销！')) return;
+
+            fetch('/api/v1/friends', {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uid: friendId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.code === 1000) {
+                    alert('好友删除成功');
+                    window.location.href = '/friends';
+                } else {
+                    alert(data.msg || '删除好友失败');
+                }
+            })
+            .catch(error => {
+                console.error('删除好友失败:', error);
+                alert('网络错误，请重试');
+            });
+        }
+
+        // 初始化加载
+        loadFriendDetail();
+    </script>
+</body>
+</html>
